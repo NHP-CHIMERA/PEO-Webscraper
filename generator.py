@@ -18,20 +18,22 @@ def get_pattern_combinations(pttrn:tuple):
 class Generator:
     def __init__(self):
         self.patterns = {
-            "a" : [], # "a" : [ [('ab, 'ab'), (
+            "a" : [],
             "e" : [],
             "i" : [],
             "o" : [],
-            "u" : []
+            "u" : [],
+            "y" : []
         }
+        self.npatterns = {}
         self.lowercase_alphabet = string.ascii_lowercase
-        self.lowercase_vowels = re.findall("[aeiou]",self.lowercase_alphabet)
-        self.lowercase_consonants = re.findall("[^aeiou]", self.lowercase_alphabet)
+        self.lowercase_vowels = re.findall("[aeiouy]",self.lowercase_alphabet)
+        self.lowercase_consonants = re.findall("[^aeiouy]", self.lowercase_alphabet)
 
     def get_patterns(self, num_elements: int):
         [self.patterns[v].append(get_pattern_combinations(regex_pattern(v,c))) for v in self.lowercase_vowels for c in self.lowercase_consonants]
 
-        if num_elements:
+        if num_elements != 0:
             for vowel, patterns in self.patterns.items():
                 sliced = patterns[0:num_elements]
                 self.patterns[vowel] = sliced

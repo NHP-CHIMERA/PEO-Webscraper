@@ -7,7 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 from generator import Generator
 
-
+import threading
 def get_records(tag: bs4.element.Tag):
     """returns all the tr tags inside the table that have style=color:#333333;background-color:#FFFBD6; or style=color:#333333;background-color:White;height:45px; """
     target_styles = {
@@ -21,6 +21,7 @@ class WebSearcher:
     def __init__(self, webdriver):
         self.webdriver = webdriver
         self.data = []
+        self.data_lock = threading.Lock()
 
     def get_data(self):
         return self.data
@@ -56,12 +57,12 @@ class WebSearcher:
         # get the table
         table = page_src.find("table", {"id":"MainContent_GridView1"})
 
-
+        records_to_add = []
         table_records = table.find_all(get_records) #list of <tr> and children
         for record in table_records: # iterating over each <tr>
             record_content = record.contents
 
-            self.data.append({
+            records_to_add.append({
                 "RegNo" : record_content[2].text,
                 "Given Names": record_content[3].text,
                 "Surname": record_content[4].text,
@@ -71,6 +72,9 @@ class WebSearcher:
                 "PD" : record_content[8].text,
 
             })
+        # Thread-safe data append
+        with self.data_lock:
+            self.data.extend(records_to_add)
 
     def main_search(self):
         gen = Generator()
@@ -80,3 +84,47 @@ class WebSearcher:
                 for combo in consonant_combos:
                     self.search_site(*combo)
 
+    def process_vowel_pattern(self, pattern_data, webdriver_factory):
+        """Process all searches for a specific vowel pattern in a separate thread"""
+        # Create a new webdriver instance for this thread
+        thread_driver = webdriver_factory()
+        thread_searcher = WebSearcher(thread_driver)
+
+        try:
+            for consonant_combos in pattern_data:
+                for combo in consonant_combos:
+                    thread_searcher.search_site(*combo)
+
+            # Merge thread results into main data (thread-safe)
+            with self.data_lock:
+                self.data.extend(thread_searcher.data)
+        finally:
+            # Clean up the webdriver
+            thread_driver.quit()
+
+    def true_search(self, webdriver):
+        """
+        Main search with multithreading
+
+        Args:
+            webdriver_factory: A callable that returns a new WebDriver instance
+                              Example: lambda: webdriver.Chrome()
+                              :param webdriver:
+        """
+        gen = Generator()
+        vowel_patterns = gen.get_patterns(0)
+
+        threads = []
+        for vowel, pattern_data in vowel_patterns.items():
+            thread = threading.Thread(
+                target=self.process_vowel_pattern,
+                args=(pattern_data, webdriver)
+            )
+            thread.start()
+            threads.append(thread)
+
+        # Wait for all threads to complete
+        for thread in threads:
+            thread.join()
+
+        print(f"Search complete. Total records collected: {len(self.data)}")

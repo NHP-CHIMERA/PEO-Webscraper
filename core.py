@@ -11,8 +11,14 @@ from searcher import WebSearcher
 
 
 if __name__ == "__main__":
-
-    sel_driver = webdriver.Firefox()
+    def create_driver():
+        """Factory function to create new Firefox WebDriver instances"""
+        options  = webdriver.FirefoxOptions()
+        options.add_argument('--headless')
+        driver = webdriver.Firefox(options=options)
+        driver.get("https://www.peogrenada.org/ElectorialListing/Method2")
+        return driver
+    sel_driver = create_driver()
     try:
         sel_driver.get("https://www.peogrenada.org/ElectorialListing/Method2")
 
@@ -20,7 +26,8 @@ if __name__ == "__main__":
 
         start = time.time()
 
-        searcher.main_search()
+        # searcher.main_search()
+        searcher.true_search(create_driver)
         search_end = time.time()
         print(f'Search Time: {search_end - start:.2f} seconds')
 
